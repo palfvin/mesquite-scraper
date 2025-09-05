@@ -1,0 +1,77 @@
+
+================================================================================
+MESQUITE COUNTRY CLUB PROPERTY LISTINGS ANALYSIS
+================================================================================
+
+📊 OVERVIEW
+Total Properties: 10
+Properties with Courtesy Info: 9
+Properties without Courtesy Info: 1
+Success Rate: 90.0%
+
+👥 REALTOR ANALYSIS
+Total Unique Realtors: 10
+
+Top 10 Realtors by Property Count:
+--------------------------------------------------
+ 1. Juan Carlos Nuno                      2 properties
+ 2. Sarah Johnson                         2 properties
+ 3. Michael Chen                          2 properties
+ 4. Jesus Martinez                        1 properties
+ 5. Lisa Wong                             1 properties
+ 6. Robert Davis                          1 properties
+ 7. Mark Thompson                         1 properties
+ 8. Jennifer Wilson                       1 properties
+ 9. Alex Rodriguez                        1 properties
+10. Maria Garcia                          1 properties
+
+🏢 COMPANY ANALYSIS
+Total Unique Companies: 4
+
+Top 10 Companies by Property Count:
+--------------------------------------------------
+ 1. Broker                                3 properties
+ 2. Desert Realty Group                   3 properties
+ 3. Palm Springs Properties               2 properties
+ 4. Coachella Valley Homes                1 properties
+
+📈 MARKET SHARE (Top 5 Realtors)
+--------------------------------------------------
+1. Juan Carlos Nuno                     15.4%
+2. Sarah Johnson                        15.4%
+3. Michael Chen                         15.4%
+4. Jesus Martinez                        7.7%
+5. Lisa Wong                             7.7%
+
+📈 MARKET SHARE (Top 5 Companies)
+--------------------------------------------------
+1. Broker                               33.3%
+2. Desert Realty Group                  33.3%
+3. Palm Springs Properties              22.2%
+4. Coachella Valley Homes               11.1%
+
+⚠️  PROPERTIES WITHOUT COURTESY INFO
+--------------------------------------------------
+1. 2001 Camino Parocela #L82
+
+
+📋 DETAILED REALTOR LISTINGS
+================================================================================
+Juan Carlos Nuno                           2 properties
+Sarah Johnson                              2 properties
+Michael Chen                               2 properties
+Jesus Martinez                             1 properties
+Lisa Wong                                  1 properties
+Robert Davis                               1 properties
+Mark Thompson                              1 properties
+Jennifer Wilson                            1 properties
+Alex Rodriguez                             1 properties
+Maria Garcia                               1 properties
+
+
+📋 DETAILED COMPANY LISTINGS
+================================================================================
+Broker                                     3 properties
+Desert Realty Group                        3 properties
+Palm Springs Properties                    2 properties
+Coachella Valley Homes                     1 properties

@@ -36,6 +36,21 @@ The scraper will:
 4. Visit each property page to extract courtesy information
 5. Save results to `mesquite_properties.json`
 
+## Data Analysis
+
+After scraping, analyze the realtor and company data:
+
+```bash
+python analyze_data.py
+```
+
+This will generate:
+- **Console summary** with top realtors and companies by property count
+- **Market share analysis** showing percentage breakdowns
+- **Detailed report** saved to `property_analysis_report.txt`
+
+See [ANALYSIS.md](ANALYSIS.md) for detailed documentation.
+
 ## Output
 
 The scraper generates a JSON file with the following structure:
