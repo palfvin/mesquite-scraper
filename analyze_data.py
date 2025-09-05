@@ -134,6 +134,110 @@ class PropertyDataAnalyzer:
             if not prop.get('courtesy_of') or prop.get('courtesy_of') == 'Not found'
         ]
     
+    def _analyze_bed_bath_stats(self) -> Dict[str, int]:
+        """Analyze bedroom/bathroom combinations"""
+        bed_bath_counts = Counter()
+        
+        for prop in self.properties:
+            beds = prop.get('beds', '')
+            baths = prop.get('baths', '')
+            if beds and baths:
+                bed_bath_key = f"{beds} bed / {baths} bath"
+                bed_bath_counts[bed_bath_key] += 1
+        
+        return dict(bed_bath_counts)
+    
+    def _print_time_analysis(self):
+        """Print time-based analysis of sales"""
+        try:
+            from datetime import datetime
+            import re
+            
+            # Extract dates and analyze by month/year
+            sale_dates = []
+            for prop in self.properties:
+                sold_date = prop.get('sold_date', '')
+                if sold_date and re.match(r'\d{4}-\d{2}-\d{2}', sold_date):
+                    try:
+                        date_obj = datetime.strptime(sold_date, '%Y-%m-%d')
+                        sale_dates.append(date_obj)
+                    except:
+                        continue
+            
+            if sale_dates:
+                # Group by month
+                monthly_sales = Counter()
+                for date in sale_dates:
+                    month_key = date.strftime('%Y-%m')
+                    monthly_sales[month_key] += 1
+                
+                print(f"\n📅 SALES BY MONTH (Recent)")
+                print("-" * 40)
+                for month, count in sorted(monthly_sales.items(), reverse=True)[:6]:
+                    try:
+                        month_name = datetime.strptime(month, '%Y-%m').strftime('%B %Y')
+                        print(f"{month_name}: {count} sales")
+                    except:
+                        print(f"{month}: {count} sales")
+        
+        except ImportError:
+            pass  # Skip time analysis if datetime not available
+    
+    def analyze_price_data(self) -> Dict[str, any]:
+        """Analyze price and market data"""
+        price_data = {
+            'list_prices': [],
+            'sold_prices': [],
+            'price_reductions': [],
+            'days_on_market': [],
+            'price_per_sqft_list': [],
+            'price_per_sqft_sold': []
+        }
+        
+        for prop in self.properties:
+            # Extract numeric values from price strings
+            list_price = self._extract_price(prop.get('list_price', ''))
+            sold_price = self._extract_price(prop.get('sold_price', ''))
+            list_psf = self._extract_price(prop.get('list_price_per_sqft', ''))
+            sold_psf = self._extract_price(prop.get('sold_price_per_sqft', ''))
+            days = self._extract_number(prop.get('days_on_market', ''))
+            
+            if list_price > 0:
+                price_data['list_prices'].append(list_price)
+            if sold_price > 0:
+                price_data['sold_prices'].append(sold_price)
+            if list_price > 0 and sold_price > 0:
+                reduction = ((list_price - sold_price) / list_price) * 100
+                price_data['price_reductions'].append(reduction)
+            if list_psf > 0:
+                price_data['price_per_sqft_list'].append(list_psf)
+            if sold_psf > 0:
+                price_data['price_per_sqft_sold'].append(sold_psf)
+            if days > 0:
+                price_data['days_on_market'].append(days)
+        
+        return price_data
+    
+    def _extract_price(self, price_str: str) -> float:
+        """Extract numeric price from string like '$369,000'"""
+        if not price_str:
+            return 0
+        import re
+        numbers = re.findall(r'[\d,]+', price_str.replace('$', ''))
+        if numbers:
+            return float(numbers[0].replace(',', ''))
+        return 0
+    
+    def _extract_number(self, num_str: str) -> int:
+        """Extract integer from string"""
+        if not num_str:
+            return 0
+        import re
+        numbers = re.findall(r'\d+', str(num_str))
+        if numbers:
+            return int(numbers[0])
+        return 0
+
     def print_summary_report(self):
         """Print a comprehensive summary report"""
         print("\n" + "="*80)
@@ -150,6 +254,40 @@ class PropertyDataAnalyzer:
         print(f"Properties with Courtesy Info: {properties_with_courtesy}")
         print(f"Properties without Courtesy Info: {properties_without_courtesy}")
         print(f"Success Rate: {properties_with_courtesy/total_properties*100:.1f}%")
+        
+        # Price analysis
+        price_data = self.analyze_price_data()
+        if price_data['sold_prices']:
+            avg_sold_price = sum(price_data['sold_prices']) / len(price_data['sold_prices'])
+            min_sold_price = min(price_data['sold_prices'])
+            max_sold_price = max(price_data['sold_prices'])
+            
+            print(f"\n💰 PRICE ANALYSIS")
+            print(f"Average Sold Price: ${avg_sold_price:,.0f}")
+            print(f"Price Range: ${min_sold_price:,.0f} - ${max_sold_price:,.0f}")
+            
+            if price_data['price_reductions']:
+                avg_reduction = sum(price_data['price_reductions']) / len(price_data['price_reductions'])
+                print(f"Average Price Reduction: {avg_reduction:.1f}%")
+            
+            if price_data['days_on_market']:
+                avg_days = sum(price_data['days_on_market']) / len(price_data['days_on_market'])
+                print(f"Average Days on Market: {avg_days:.0f} days")
+            
+            if price_data['price_per_sqft_sold']:
+                avg_psf = sum(price_data['price_per_sqft_sold']) / len(price_data['price_per_sqft_sold'])
+                print(f"Average Price per Sq Ft: ${avg_psf:.0f}")
+        
+        # Bedroom/bathroom analysis
+        bed_bath_stats = self._analyze_bed_bath_stats()
+        if bed_bath_stats:
+            print(f"\n🏠 PROPERTY TYPES")
+            for bed_bath, count in sorted(bed_bath_stats.items()):
+                percentage = count / total_properties * 100
+                print(f"{bed_bath}: {count} properties ({percentage:.1f}%)")
+        
+        # Time analysis
+        self._print_time_analysis()
         
         # Realtor analysis
         realtor_counts = self.analyze_realtors()

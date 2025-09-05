@@ -112,30 +112,22 @@ def scrape_mesquite_properties(driver: WebDriver) -> List[Dict[str, str]]:
         # Add a pause to allow visual observation and for the page to scroll/load the section
         time.sleep(3)
         
-        # Find all property links in the Past Sales section
-        print("Finding property listings...")
-        # Look for links that contain the mesquite-country-club path (more specific)
-        property_links = driver.find_elements(By.CSS_SELECTOR, "a[href*='/mesquite-country-club/']")
-        property_urls = []
+        # Extract all property data from the listing table
+        print("Extracting property data from listing table...")
+        properties_data = _extract_all_listing_data(driver)
         
-        for link in property_links:
-            href = link.get_attribute("href")
-            if href and "/mesquite-country-club/" in href and href not in property_urls:
-                # Filter out the main community page link
-                if not href.endswith("/mesquite-country-club/"):
-                    property_urls.append(href)
+        print(f"Found {len(properties_data)} properties in the listing table")
         
-        print(f"Found {len(property_urls)} property listings")
-        
-        # Visit each property page to extract courtesy information
-        for i, property_url in enumerate(property_urls, 1):
-            print(f"Processing property {i}/{len(property_urls)}: {property_url}")
-            property_data = _extract_property_data(driver, property_url)
-            if property_data:
-                properties_data.append(property_data)
-            
-            # Small delay to be respectful to the server and allow visual observation
-            time.sleep(2)
+        # Now visit each property page to get courtesy information
+        for i, property_data in enumerate(properties_data, 1):
+            property_url = property_data.get('url')
+            if property_url:
+                print(f"Getting courtesy info for property {i}/{len(properties_data)}: {property_data.get('address', 'Unknown')}")
+                courtesy_info = _extract_courtesy_info(driver, property_url)
+                property_data['courtesy_of'] = courtesy_info
+                
+                # Small delay to be respectful to the server and allow visual observation
+                time.sleep(2)
             
     except TimeoutException:
         print("Error: Could not find 'Past Sales' link or page took too long to load")
@@ -143,6 +135,189 @@ def scrape_mesquite_properties(driver: WebDriver) -> List[Dict[str, str]]:
         print(f"An unexpected error occurred: {e}")
     
     return properties_data
+
+
+def _extract_all_listing_data(driver: WebDriver) -> List[Dict[str, str]]:
+    """
+    Extract all property data from the listing table on the main page.
+    
+    Args:
+        driver: The Selenium WebDriver instance.
+        
+    Returns:
+        List of dictionaries containing property data from the table.
+    """
+    properties_data = []
+    
+    try:
+        # Wait for the sold properties section to be visible
+        time.sleep(3)
+        
+        # Get the page source and parse with BeautifulSoup for easier text processing
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(driver.page_source, 'html.parser')
+        
+        # Find the sold properties section by looking for the table headers
+        # The headers are: Address List Date List Price List $ / Sq Ft Beds / Baths Sold Date Days on Market Sold Price Sold $ / Sq Ft
+        
+        # Find all property links first
+        property_links = soup.find_all('a', href=lambda href: href and '/mesquite-country-club/' in href and not href.endswith('/mesquite-country-club/'))
+        
+        # Get the text content after the headers to parse the data
+        page_text = soup.get_text()
+        
+        # Find the section with the table data (after "Address List Date List Price...")
+        import re
+        
+        # Split the text to find property data rows
+        # Look for the pattern that starts after the headers
+        header_pattern = r'Address List Date List Price List \$ / Sq Ft Beds / Baths Sold Date Days on Market Sold Price Sold \$ / Sq Ft'
+        
+        if re.search(header_pattern, page_text):
+            # Split by the header to get the data section
+            parts = re.split(header_pattern, page_text)
+            if len(parts) > 1:
+                data_section = parts[1]
+                
+                # Process each property link and try to extract its data
+                for link in property_links:
+                    try:
+                        property_data = {}
+                        
+                        # Get basic info from the link
+                        property_data['url'] = link.get('href')
+                        if not property_data['url'].startswith('http'):
+                            property_data['url'] = 'https://www.pscondos.com' + property_data['url']
+                        
+                        address = link.get_text(strip=True)
+                        property_data['address'] = address
+                        
+                        # Try to find this property's data in the data section
+                        # Look for the address in the data section and extract the following data
+                        address_pattern = re.escape(address)
+                        
+                        # Pattern to match the property data row
+                        # Format: Address Date $Price $PricePerSqFt Beds/Baths Date Days $Price $PricePerSqFt
+                        row_pattern = f'{address_pattern}\\s+(\\d{{4}}-\\d{{2}}-\\d{{2}})\\s+\\$(\\d{{1,3}}(?:,\\d{{3}})*)\\s+\\$(\\d+)\\s+(\\d+)\\s*/\\s*(\\d+\\.?\\d*)\\s+(\\d{{4}}-\\d{{2}}-\\d{{2}})\\s+(\\d+)\\s+\\$(\\d{{1,3}}(?:,\\d{{3}})*)\\s+\\$(\\d+)'
+                        
+                        match = re.search(row_pattern, data_section)
+                        if match:
+                            property_data['list_date'] = match.group(1)
+                            property_data['list_price'] = f"${match.group(2)}"
+                            property_data['list_price_per_sqft'] = f"${match.group(3)}"
+                            property_data['beds'] = match.group(4)
+                            property_data['baths'] = match.group(5)
+                            property_data['sold_date'] = match.group(6)
+                            property_data['days_on_market'] = match.group(7)
+                            property_data['sold_price'] = f"${match.group(8)}"
+                            property_data['sold_price_per_sqft'] = f"${match.group(9)}"
+                        else:
+                            # If exact pattern doesn't match, try to extract what we can
+                            # Look for data near the address
+                            address_index = data_section.find(address)
+                            if address_index != -1:
+                                # Get text around the address (next 200 characters)
+                                surrounding_text = data_section[address_index:address_index + 200]
+                                
+                                # Extract dates
+                                dates = re.findall(r'(\d{4}-\d{2}-\d{2})', surrounding_text)
+                                if len(dates) >= 2:
+                                    property_data['list_date'] = dates[0]
+                                    property_data['sold_date'] = dates[1]
+                                
+                                # Extract prices
+                                prices = re.findall(r'\$(\d{1,3}(?:,\d{3})*)', surrounding_text)
+                                if len(prices) >= 2:
+                                    property_data['list_price'] = f"${prices[0]}"
+                                    property_data['sold_price'] = f"${prices[-1]}"
+                                
+                                # Extract beds/baths
+                                beds_baths = re.search(r'(\d+)\s*/\s*(\d+\.?\d*)', surrounding_text)
+                                if beds_baths:
+                                    property_data['beds'] = beds_baths.group(1)
+                                    property_data['baths'] = beds_baths.group(2)
+                                
+                                # Extract days on market (look for standalone number)
+                                days_matches = re.findall(r'\b(\d{1,3})\b', surrounding_text)
+                                for days in days_matches:
+                                    if 1 <= int(days) <= 500:  # Reasonable range for days on market
+                                        property_data['days_on_market'] = days
+                                        break
+                        
+                        # Set defaults for missing fields
+                        for field in ['list_date', 'list_price', 'list_price_per_sqft', 'beds', 'baths', 
+                                     'sold_date', 'days_on_market', 'sold_price', 'sold_price_per_sqft']:
+                            if field not in property_data:
+                                property_data[field] = ''
+                        
+                        properties_data.append(property_data)
+                        
+                    except Exception as e:
+                        print(f"Error extracting data for property {address}: {e}")
+                        continue
+        
+        print(f"Extracted data for {len(properties_data)} properties from listing table")
+        
+    except Exception as e:
+        print(f"Error extracting listing data: {e}")
+    
+    return properties_data
+
+
+def _extract_courtesy_info(driver: WebDriver, property_url: str) -> str:
+    """
+    Extract courtesy information from an individual property page.
+    
+    Args:
+        driver: The Selenium WebDriver instance.
+        property_url: URL of the property page to scrape.
+        
+    Returns:
+        Courtesy information string or "Not found" if extraction fails.
+    """
+    try:
+        driver.get(property_url)
+        _wait_for_page_load(driver)
+        
+        # Add a pause to allow visual observation of each property page
+        time.sleep(2)
+        
+        # Extract courtesy information - based on actual HTML structure found
+        try:
+            # Look for the specific "Courtesy of:" text pattern found in the HTML
+            courtesy_element = driver.find_element(By.XPATH, "//*[contains(text(), 'Courtesy of:')]")
+            courtesy_text = courtesy_element.text.strip()
+            
+            # Extract the actual agent/company name after "Courtesy of:"
+            if "Courtesy of:" in courtesy_text:
+                courtesy_of = courtesy_text.split("Courtesy of:")[-1].strip()
+                return courtesy_of
+            else:
+                return courtesy_text
+                
+        except NoSuchElementException:
+            # Fallback to other possible selectors
+            fallback_selectors = [
+                "//*[contains(text(), 'courtesy of')]",
+                "//*[contains(text(), 'Listing courtesy of')]",
+                "//span[contains(@class, 'courtesy')]",
+                "//div[contains(@class, 'courtesy')]"
+            ]
+            
+            for selector in fallback_selectors:
+                try:
+                    courtesy_element = driver.find_element(By.XPATH, selector)
+                    courtesy_text = courtesy_element.text.strip()
+                    if courtesy_text:
+                        return courtesy_text
+                except NoSuchElementException:
+                    continue
+        
+        return "Not found"
+        
+    except Exception as e:
+        print(f"Error extracting courtesy info for {property_url}: {e}")
+        return "Not found"
 
 
 def _extract_property_data(driver: WebDriver, property_url: str) -> Optional[Dict[str, str]]:

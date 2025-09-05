@@ -57,8 +57,17 @@ The scraper generates a JSON file with the following structure:
 ```json
 [
   {
-    "url": "https://www.pscondos.com/property/...",
+    "url": "https://www.pscondos.com/palm-springs/mesquite-country-club/...",
     "address": "Property address",
+    "list_date": "2025-06-20",
+    "list_price": "$369,000",
+    "list_price_per_sqft": "$314",
+    "beds": "2",
+    "baths": "2.00",
+    "sold_date": "2025-08-07",
+    "days_on_market": "20",
+    "sold_price": "$350,000",
+    "sold_price_per_sqft": "$298",
     "courtesy_of": "Agent/Company name"
   }
 ]

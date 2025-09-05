@@ -30,6 +30,23 @@ Properties with Courtesy Info: 58
 Properties without Courtesy Info: 3
 Success Rate: 95.1%
 
+💰 PRICE ANALYSIS
+Average Sold Price: $384,333
+Price Range: $282,000 - $439,000
+Average Price Reduction: 3.7%
+Average Days on Market: 45 days
+Average Price per Sq Ft: $327
+
+🏠 PROPERTY TYPES
+1 bed / 1.00 bath: 8 properties (13.1%)
+2 bed / 2.00 bath: 53 properties (86.9%)
+
+📅 SALES BY MONTH (Recent)
+----------------------------------------
+August 2025: 12 sales
+July 2025: 8 sales
+June 2025: 6 sales
+
 👥 REALTOR ANALYSIS
 Total Unique Realtors: 25
 
@@ -72,6 +89,9 @@ Top 10 Companies by Property Count:
 - **Realtor Analysis**: Count properties by individual agent
 - **Company Analysis**: Count properties by brokerage/company
 - **Market Share**: Percentage breakdown of top performers
+- **Price Analysis**: Average prices, price reductions, price per sq ft
+- **Market Timing**: Days on market, sales by month
+- **Property Types**: Bedroom/bathroom combinations
 - **Success Rate**: Percentage of properties with courtesy info found
 
 ### Output Formats
