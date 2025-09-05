@@ -153,113 +153,197 @@ def _extract_all_listing_data(driver: WebDriver) -> List[Dict[str, str]]:
         # Wait for the sold properties section to be visible
         time.sleep(3)
         
-        # Get the page source and parse with BeautifulSoup for easier text processing
+        # Get the page source and parse with BeautifulSoup
         from bs4 import BeautifulSoup
         soup = BeautifulSoup(driver.page_source, 'html.parser')
-        
-        # Find the sold properties section by looking for the table headers
-        # The headers are: Address List Date List Price List $ / Sq Ft Beds / Baths Sold Date Days on Market Sold Price Sold $ / Sq Ft
         
         # Find all property links first
         property_links = soup.find_all('a', href=lambda href: href and '/mesquite-country-club/' in href and not href.endswith('/mesquite-country-club/'))
         
-        # Get the text content after the headers to parse the data
+        print(f"Found {len(property_links)} property links")
+        
+        # Get the full page text for parsing
         page_text = soup.get_text()
         
-        # Find the section with the table data (after "Address List Date List Price...")
+        # Look for the data section - it should contain the property data after the headers
+        # Instead of relying on exact header matching, look for patterns in the data
         import re
         
-        # Split the text to find property data rows
-        # Look for the pattern that starts after the headers
-        header_pattern = r'Address List Date List Price List \$ / Sq Ft Beds / Baths Sold Date Days on Market Sold Price Sold \$ / Sq Ft'
-        
-        if re.search(header_pattern, page_text):
-            # Split by the header to get the data section
-            parts = re.split(header_pattern, page_text)
-            if len(parts) > 1:
-                data_section = parts[1]
+        # Process each property link and extract data around it
+        for link in property_links:
+            try:
+                property_data = {}
                 
-                # Process each property link and try to extract its data
-                for link in property_links:
-                    try:
-                        property_data = {}
-                        
-                        # Get basic info from the link
-                        property_data['url'] = link.get('href')
-                        if not property_data['url'].startswith('http'):
-                            property_data['url'] = 'https://www.pscondos.com' + property_data['url']
-                        
-                        address = link.get_text(strip=True)
-                        property_data['address'] = address
-                        
-                        # Try to find this property's data in the data section
-                        # Look for the address in the data section and extract the following data
-                        address_pattern = re.escape(address)
-                        
-                        # Pattern to match the property data row
-                        # Format: Address Date $Price $PricePerSqFt Beds/Baths Date Days $Price $PricePerSqFt
-                        row_pattern = f'{address_pattern}\\s+(\\d{{4}}-\\d{{2}}-\\d{{2}})\\s+\\$(\\d{{1,3}}(?:,\\d{{3}})*)\\s+\\$(\\d+)\\s+(\\d+)\\s*/\\s*(\\d+\\.?\\d*)\\s+(\\d{{4}}-\\d{{2}}-\\d{{2}})\\s+(\\d+)\\s+\\$(\\d{{1,3}}(?:,\\d{{3}})*)\\s+\\$(\\d+)'
-                        
-                        match = re.search(row_pattern, data_section)
-                        if match:
-                            property_data['list_date'] = match.group(1)
-                            property_data['list_price'] = f"${match.group(2)}"
-                            property_data['list_price_per_sqft'] = f"${match.group(3)}"
-                            property_data['beds'] = match.group(4)
-                            property_data['baths'] = match.group(5)
-                            property_data['sold_date'] = match.group(6)
-                            property_data['days_on_market'] = match.group(7)
-                            property_data['sold_price'] = f"${match.group(8)}"
-                            property_data['sold_price_per_sqft'] = f"${match.group(9)}"
-                        else:
-                            # If exact pattern doesn't match, try to extract what we can
-                            # Look for data near the address
-                            address_index = data_section.find(address)
-                            if address_index != -1:
-                                # Get text around the address (next 200 characters)
-                                surrounding_text = data_section[address_index:address_index + 200]
-                                
-                                # Extract dates
-                                dates = re.findall(r'(\d{4}-\d{2}-\d{2})', surrounding_text)
-                                if len(dates) >= 2:
-                                    property_data['list_date'] = dates[0]
-                                    property_data['sold_date'] = dates[1]
-                                
-                                # Extract prices
-                                prices = re.findall(r'\$(\d{1,3}(?:,\d{3})*)', surrounding_text)
-                                if len(prices) >= 2:
-                                    property_data['list_price'] = f"${prices[0]}"
-                                    property_data['sold_price'] = f"${prices[-1]}"
-                                
-                                # Extract beds/baths
-                                beds_baths = re.search(r'(\d+)\s*/\s*(\d+\.?\d*)', surrounding_text)
-                                if beds_baths:
-                                    property_data['beds'] = beds_baths.group(1)
-                                    property_data['baths'] = beds_baths.group(2)
-                                
-                                # Extract days on market (look for standalone number)
-                                days_matches = re.findall(r'\b(\d{1,3})\b', surrounding_text)
-                                for days in days_matches:
-                                    if 1 <= int(days) <= 500:  # Reasonable range for days on market
-                                        property_data['days_on_market'] = days
-                                        break
-                        
-                        # Set defaults for missing fields
-                        for field in ['list_date', 'list_price', 'list_price_per_sqft', 'beds', 'baths', 
-                                     'sold_date', 'days_on_market', 'sold_price', 'sold_price_per_sqft']:
-                            if field not in property_data:
-                                property_data[field] = ''
-                        
-                        properties_data.append(property_data)
-                        
-                    except Exception as e:
-                        print(f"Error extracting data for property {address}: {e}")
-                        continue
+                # Get basic info from the link
+                property_data['url'] = link.get('href')
+                if not property_data['url'].startswith('http'):
+                    property_data['url'] = 'https://www.pscondos.com' + property_data['url']
+                
+                address = link.get_text(strip=True)
+                property_data['address'] = address
+                
+                # Find the address in the page text and extract surrounding data
+                address_index = page_text.find(address)
+                if address_index != -1:
+                    # Get a larger context around the address (500 characters after)
+                    context_text = page_text[address_index:address_index + 500]
+                    
+                    # Debug: print the context for the first few properties
+                    if len(properties_data) < 3:
+                        print(f"Context for {address}: {context_text[:200]}...")
+                    
+                    # Extract data using more flexible patterns
+                    # Look for dates (YYYY-MM-DD format)
+                    dates = re.findall(r'(\d{4}-\d{2}-\d{2})', context_text)
+                    if len(dates) >= 2:
+                        property_data['list_date'] = dates[0]
+                        property_data['sold_date'] = dates[1]
+                    elif len(dates) == 1:
+                        property_data['list_date'] = dates[0]
+                        property_data['sold_date'] = ''
+                    
+                    # Extract prices (format: $XXX,XXX or $XXX)
+                    prices = re.findall(r'\$(\d{1,3}(?:,\d{3})*)', context_text)
+                    if len(prices) >= 4:
+                        property_data['list_price'] = f"${prices[0]}"
+                        property_data['list_price_per_sqft'] = f"${prices[1]}"
+                        property_data['sold_price'] = f"${prices[2]}"
+                        property_data['sold_price_per_sqft'] = f"${prices[3]}"
+                    elif len(prices) >= 2:
+                        property_data['list_price'] = f"${prices[0]}"
+                        property_data['sold_price'] = f"${prices[-1]}"
+                        # Try to find price per sqft values (usually smaller numbers)
+                        for price in prices[1:-1]:
+                            if int(price.replace(',', '')) < 1000:  # Price per sqft is usually < $1000
+                                if 'list_price_per_sqft' not in property_data:
+                                    property_data['list_price_per_sqft'] = f"${price}"
+                                elif 'sold_price_per_sqft' not in property_data:
+                                    property_data['sold_price_per_sqft'] = f"${price}"
+                    
+                    # Extract beds/baths (format: X / X.XX)
+                    beds_baths = re.search(r'(\d+)\s*/\s*(\d+\.?\d*)', context_text)
+                    if beds_baths:
+                        property_data['beds'] = beds_baths.group(1)
+                        property_data['baths'] = beds_baths.group(2)
+                    
+                    # Extract days on market (look for reasonable numbers between dates and prices)
+                    # This is tricky - look for standalone numbers that could be days
+                    numbers = re.findall(r'\b(\d{1,3})\b', context_text)
+                    for num in numbers:
+                        num_val = int(num)
+                        if 1 <= num_val <= 365:  # Reasonable range for days on market
+                            # Make sure it's not part of a date or price
+                            if not re.search(f'\\d{{4}}-\\d{{2}}-{num}', context_text) and not re.search(f'\\${num}', context_text):
+                                property_data['days_on_market'] = num
+                                break
+                
+                # Set defaults for missing fields
+                for field in ['list_date', 'list_price', 'list_price_per_sqft', 'beds', 'baths', 
+                             'sold_date', 'days_on_market', 'sold_price', 'sold_price_per_sqft']:
+                    if field not in property_data:
+                        property_data[field] = ''
+                
+                properties_data.append(property_data)
+                
+            except Exception as e:
+                print(f"Error extracting data for property {address}: {e}")
+                continue
         
-        print(f"Extracted data for {len(properties_data)} properties from listing table")
+        print(f"Successfully extracted data for {len(properties_data)} properties from listing table")
+        
+        # If we didn't get much data, try a different approach using Selenium directly
+        if len(properties_data) == 0:
+            print("No data extracted with BeautifulSoup approach, trying Selenium direct approach...")
+            properties_data = _extract_listing_data_selenium(driver)
         
     except Exception as e:
         print(f"Error extracting listing data: {e}")
+        # Fallback to Selenium approach
+        print("Trying fallback Selenium approach...")
+        properties_data = _extract_listing_data_selenium(driver)
+    
+    return properties_data
+
+
+def _extract_listing_data_selenium(driver: WebDriver) -> List[Dict[str, str]]:
+    """
+    Fallback method to extract listing data using Selenium directly.
+    """
+    properties_data = []
+    
+    try:
+        # Find all property links using Selenium
+        property_links = driver.find_elements(By.CSS_SELECTOR, "a[href*='/mesquite-country-club/']")
+        
+        # Filter out the main community page link
+        filtered_links = []
+        for link in property_links:
+            href = link.get_attribute("href")
+            if href and not href.endswith("/mesquite-country-club/"):
+                filtered_links.append(link)
+        
+        print(f"Found {len(filtered_links)} property links with Selenium")
+        
+        for link in filtered_links:
+            try:
+                property_data = {}
+                
+                # Get URL and address
+                property_data['url'] = link.get_attribute("href")
+                property_data['address'] = link.text.strip()
+                
+                # Try to find the parent element that contains the data
+                parent = link
+                for _ in range(5):  # Go up max 5 levels
+                    parent = parent.find_element(By.XPATH, "..")
+                    parent_text = parent.text
+                    
+                    # Look for patterns that indicate this contains property data
+                    if ('$' in parent_text and 
+                        len(re.findall(r'\d{4}-\d{2}-\d{2}', parent_text)) >= 1 and
+                        '/' in parent_text):
+                        
+                        # Extract what we can from this parent element
+                        import re
+                        
+                        # Extract dates
+                        dates = re.findall(r'(\d{4}-\d{2}-\d{2})', parent_text)
+                        if len(dates) >= 2:
+                            property_data['list_date'] = dates[0]
+                            property_data['sold_date'] = dates[1]
+                        elif len(dates) == 1:
+                            property_data['list_date'] = dates[0]
+                        
+                        # Extract prices
+                        prices = re.findall(r'\$(\d{1,3}(?:,\d{3})*)', parent_text)
+                        if len(prices) >= 2:
+                            property_data['list_price'] = f"${prices[0]}"
+                            property_data['sold_price'] = f"${prices[-1]}"
+                        
+                        # Extract beds/baths
+                        beds_baths = re.search(r'(\d+)\s*/\s*(\d+\.?\d*)', parent_text)
+                        if beds_baths:
+                            property_data['beds'] = beds_baths.group(1)
+                            property_data['baths'] = beds_baths.group(2)
+                        
+                        break
+                
+                # Set defaults for missing fields
+                for field in ['list_date', 'list_price', 'list_price_per_sqft', 'beds', 'baths', 
+                             'sold_date', 'days_on_market', 'sold_price', 'sold_price_per_sqft']:
+                    if field not in property_data:
+                        property_data[field] = ''
+                
+                properties_data.append(property_data)
+                
+            except Exception as e:
+                print(f"Error extracting data for property with Selenium: {e}")
+                continue
+        
+        print(f"Selenium approach extracted data for {len(properties_data)} properties")
+        
+    except Exception as e:
+        print(f"Error with Selenium fallback approach: {e}")
     
     return properties_data
 
