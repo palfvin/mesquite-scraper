@@ -35,22 +35,30 @@ def scrape_mesquite_properties(driver: WebDriver) -> List[Dict[str, str]]:
         driver.get(config.BASE_URL)
         _wait_for_page_load(driver)
         
-        # Click on "Past Sales" link
+        # Click on "Past Sales" link (it's an anchor link to #properties-sold)
         print("Looking for 'Past Sales' link...")
         past_sales_link = WebDriverWait(driver, config.WEBDRIVER_TIMEOUT).until(
-            EC.element_to_be_clickable((By.LINK_TEXT, "Past Sales"))
+            EC.element_to_be_clickable((By.PARTIAL_LINK_TEXT, "Past Sales"))
         )
         past_sales_link.click()
         _wait_for_page_load(driver)
         print("Successfully clicked on 'Past Sales'")
         
-        # Add a pause to allow visual observation
+        # Add a pause to allow visual observation and for the page to scroll/load the section
         time.sleep(3)
         
         # Find all property links in the Past Sales section
         print("Finding property listings...")
-        property_links = driver.find_elements(By.CSS_SELECTOR, "a[href*='/property/']")
-        property_urls = [link.get_attribute("href") for link in property_links if link.get_attribute("href")]
+        # Look for links that contain the mesquite-country-club path (more specific)
+        property_links = driver.find_elements(By.CSS_SELECTOR, "a[href*='/mesquite-country-club/']")
+        property_urls = []
+        
+        for link in property_links:
+            href = link.get_attribute("href")
+            if href and "/mesquite-country-club/" in href and href not in property_urls:
+                # Filter out the main community page link
+                if not href.endswith("/mesquite-country-club/"):
+                    property_urls.append(href)
         
         print(f"Found {len(property_urls)} property listings")
         
@@ -96,51 +104,55 @@ def _extract_property_data(driver: WebDriver, property_url: str) -> Optional[Dic
             "courtesy_of": "Not found"
         }
         
-        # Extract property address
+        # Extract property address - based on actual HTML structure
         try:
-            address_element = driver.find_element(By.CSS_SELECTOR, "h1, .property-address, .address")
+            # The address is in an h1 tag based on the HTML structure we found
+            address_element = driver.find_element(By.TAG_NAME, "h1")
             property_data["address"] = address_element.text.strip()
         except NoSuchElementException:
-            # Try alternative selectors for address
+            # Fallback selectors
             try:
-                address_element = driver.find_element(By.XPATH, "//h1 | //span[contains(@class, 'address')] | //*[contains(text(), 'Mesquite')]")
+                address_element = driver.find_element(By.XPATH, "//h1 | //*[contains(@class, 'address')] | //*[contains(text(), 'Mesquite')]")
                 property_data["address"] = address_element.text.strip()
             except NoSuchElementException:
                 print(f"Could not find address for property: {property_url}")
         
-        # Extract courtesy information
+        # Extract courtesy information - based on actual HTML structure found
         try:
-            # Look for "courtesy of" text in various possible locations
-            courtesy_selectors = [
-                "//*[contains(text(), 'Courtesy of')]",
+            # Look for the specific "Courtesy of:" text pattern found in the HTML
+            courtesy_element = driver.find_element(By.XPATH, "//*[contains(text(), 'Courtesy of:')]")
+            courtesy_text = courtesy_element.text.strip()
+            
+            # Extract the actual agent/company name after "Courtesy of:"
+            if "Courtesy of:" in courtesy_text:
+                courtesy_of = courtesy_text.split("Courtesy of:")[-1].strip()
+                property_data["courtesy_of"] = courtesy_of
+            else:
+                property_data["courtesy_of"] = courtesy_text
+                
+        except NoSuchElementException:
+            # Fallback to other possible selectors
+            fallback_selectors = [
                 "//*[contains(text(), 'courtesy of')]",
                 "//*[contains(text(), 'Listing courtesy of')]",
-                "//*[contains(text(), 'listing courtesy of')]",
                 "//span[contains(@class, 'courtesy')]",
-                "//div[contains(@class, 'courtesy')]",
-                "//p[contains(@class, 'courtesy')]"
+                "//div[contains(@class, 'courtesy')]"
             ]
             
-            for selector in courtesy_selectors:
+            for selector in fallback_selectors:
                 try:
                     courtesy_element = driver.find_element(By.XPATH, selector)
                     courtesy_text = courtesy_element.text.strip()
-                    
-                    # Extract the actual agent/company name from the courtesy text
-                    if "courtesy of" in courtesy_text.lower():
-                        courtesy_of = courtesy_text.split("courtesy of")[-1].strip()
-                        if courtesy_of:
-                            property_data["courtesy_of"] = courtesy_of
-                            break
-                    else:
+                    if courtesy_text:
                         property_data["courtesy_of"] = courtesy_text
                         break
-                        
                 except NoSuchElementException:
                     continue
             
             if property_data["courtesy_of"] == "Not found":
                 print(f"Could not find courtesy information for property: {property_url}")
+            else:
+                print(f"Found courtesy info: {property_data['courtesy_of']}")
                 
         except Exception as e:
             print(f"Error extracting courtesy info for {property_url}: {e}")

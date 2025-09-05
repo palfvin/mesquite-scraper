@@ -5,10 +5,12 @@ A web scraper built in the style of amherst-office-scraper that extracts propert
 ## Features
 
 - Navigates to the Mesquite Country Club page
-- Clicks on "Past Sales" section
-- Extracts property listings and their courtesy information
-- Saves results to JSON file
+- Clicks on "Past Sales" section (anchor link to #properties-sold)
+- Extracts property listings from the sold properties section
+- Visits each individual property page to extract "Courtesy of:" information
+- Saves results to JSON file with address, URL, and courtesy details
 - Comprehensive error handling and logging
+- Visible browser mode for watching the scraper work
 
 ## Installation
 
