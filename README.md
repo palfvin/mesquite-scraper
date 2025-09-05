@@ -50,9 +50,16 @@ The scraper generates a JSON file with the following structure:
 ## Configuration
 
 Edit `src/config.py` to modify:
-- Base URL
-- Timeout settings
-- Other scraper parameters
+- `BASE_URL` - Target website URL
+- `WEBDRIVER_TIMEOUT` - Page load timeout in seconds
+- `HEADLESS_MODE` - Set to `False` to show browser window, `True` to run hidden
+- `WINDOW_WIDTH` / `WINDOW_HEIGHT` - Browser window dimensions
+
+### Visible Browser Mode
+By default, the scraper runs with a visible Chrome browser window so you can watch it work:
+- Set `HEADLESS_MODE = False` in `config.py` to see the browser
+- Set `HEADLESS_MODE = True` to run in background mode
+- Window size and position are configurable
 
 ## Architecture
 
@@ -73,7 +80,8 @@ The scraper includes comprehensive error handling for:
 
 ## Notes
 
-- The scraper runs in headless mode by default
-- Includes respectful delays between requests
+- The scraper runs with a visible browser window by default (configurable)
+- Includes respectful delays between requests for observation and server courtesy
 - Handles dynamic content loading
 - No authentication required (unlike amherst-office-scraper)
+- Visual feedback and slower execution when running in visible mode

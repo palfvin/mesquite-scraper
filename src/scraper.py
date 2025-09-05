@@ -44,6 +44,9 @@ def scrape_mesquite_properties(driver: WebDriver) -> List[Dict[str, str]]:
         _wait_for_page_load(driver)
         print("Successfully clicked on 'Past Sales'")
         
+        # Add a pause to allow visual observation
+        time.sleep(3)
+        
         # Find all property links in the Past Sales section
         print("Finding property listings...")
         property_links = driver.find_elements(By.CSS_SELECTOR, "a[href*='/property/']")
@@ -58,8 +61,8 @@ def scrape_mesquite_properties(driver: WebDriver) -> List[Dict[str, str]]:
             if property_data:
                 properties_data.append(property_data)
             
-            # Small delay to be respectful to the server
-            time.sleep(1)
+            # Small delay to be respectful to the server and allow visual observation
+            time.sleep(2)
             
     except TimeoutException:
         print("Error: Could not find 'Past Sales' link or page took too long to load")
@@ -83,6 +86,9 @@ def _extract_property_data(driver: WebDriver, property_url: str) -> Optional[Dic
     try:
         driver.get(property_url)
         _wait_for_page_load(driver)
+        
+        # Add a pause to allow visual observation of each property page
+        time.sleep(2)
         
         property_data = {
             "url": property_url,

@@ -23,12 +23,22 @@ def main():
     
     # Initialize Selenium WebDriver with Service
     options = webdriver.ChromeOptions()
-    options.add_argument("--headless")  # Run in headless mode
+    
+    # Configure headless mode based on config
+    if config.HEADLESS_MODE:
+        options.add_argument("--headless")
+        logger.info("Running in headless mode (browser window hidden)")
+    else:
+        logger.info("Running in visible mode (browser window will be shown)")
+    
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--disable-gpu")
     options.add_argument("--disable-web-security")
     options.add_argument("--allow-running-insecure-content")
+    
+    # Set window size and position for better visibility
+    options.add_argument(f"--window-size={config.WINDOW_WIDTH},{config.WINDOW_HEIGHT}")
+    options.add_argument("--window-position=100,100")
     
     service = Service()
     driver = webdriver.Chrome(service=service, options=options)
