@@ -17,6 +17,55 @@ def _wait_for_page_load(driver: WebDriver, timeout: int = config.WEBDRIVER_TIMEO
     )
 
 
+def _dismiss_cookie_banner(driver: WebDriver):
+    """Dismiss cookie consent banner if present."""
+    try:
+        # Look for common cookie banner dismiss buttons
+        cookie_selectors = [
+            "//div[contains(@class, 'cookie')]//button[contains(text(), 'Accept')]",
+            "//div[contains(@class, 'cookie')]//button[contains(text(), 'OK')]",
+            "//div[contains(@class, 'cookie')]//button[contains(text(), 'Close')]",
+            "//div[contains(@class, 'cookie')]//button[@class='close']",
+            "//div[contains(@class, 'cookie')]//a[contains(text(), 'Accept')]",
+            "//div[contains(@class, 'cookie')]//span[contains(text(), '×')]",
+            "//div[contains(@class, 'cookie-footer')]//button",
+            "//div[contains(@class, 'cookie-footer')]//a",
+            "//button[contains(@class, 'cookie')]",
+            "//a[contains(@class, 'cookie')]"
+        ]
+        
+        for selector in cookie_selectors:
+            try:
+                cookie_button = WebDriverWait(driver, 2).until(
+                    EC.element_to_be_clickable((By.XPATH, selector))
+                )
+                cookie_button.click()
+                print("Cookie banner dismissed")
+                time.sleep(1)  # Wait for banner to disappear
+                return True
+            except TimeoutException:
+                continue
+                
+        # If no clickable button found, try to hide the banner with JavaScript
+        try:
+            driver.execute_script("""
+                var cookieElements = document.querySelectorAll('[class*="cookie"]');
+                for (var i = 0; i < cookieElements.length; i++) {
+                    cookieElements[i].style.display = 'none';
+                }
+            """)
+            print("Cookie banner hidden with JavaScript")
+            return True
+        except:
+            pass
+            
+        return False
+        
+    except Exception as e:
+        print(f"Error handling cookie banner: {e}")
+        return False
+
+
 def scrape_mesquite_properties(driver: WebDriver) -> List[Dict[str, str]]:
     """
     Scrapes property listings from Mesquite Country Club Past Sales section.
@@ -35,12 +84,28 @@ def scrape_mesquite_properties(driver: WebDriver) -> List[Dict[str, str]]:
         driver.get(config.BASE_URL)
         _wait_for_page_load(driver)
         
+        # Dismiss cookie banner if present
+        print("Checking for cookie banner...")
+        _dismiss_cookie_banner(driver)
+        
         # Click on "Past Sales" link (it's an anchor link to #properties-sold)
         print("Looking for 'Past Sales' link...")
         past_sales_link = WebDriverWait(driver, config.WEBDRIVER_TIMEOUT).until(
             EC.element_to_be_clickable((By.PARTIAL_LINK_TEXT, "Past Sales"))
         )
-        past_sales_link.click()
+        
+        # Scroll to the element to ensure it's visible
+        driver.execute_script("arguments[0].scrollIntoView(true);", past_sales_link)
+        time.sleep(1)
+        
+        try:
+            past_sales_link.click()
+        except Exception as e:
+            print(f"Regular click failed: {e}")
+            print("Trying JavaScript click...")
+            # Fallback to JavaScript click if regular click is intercepted
+            driver.execute_script("arguments[0].click();", past_sales_link)
+        
         _wait_for_page_load(driver)
         print("Successfully clicked on 'Past Sales'")
         
