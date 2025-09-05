@@ -72,6 +72,33 @@ The project follows the same structure as amherst-office-scraper:
 - `src/config.py` - Configuration settings
 - `src/utils.py` - Utility functions and logging
 
+## Testing
+
+The project includes comprehensive tests that catch real-world issues like cookie banners:
+
+### Run Critical Tests (Recommended)
+```bash
+python run_tests.py
+```
+This runs the key tests that would catch blocking issues:
+- Cookie banner detection
+- Past Sales link clickability 
+- Full click sequence with cookie handling
+
+### Run All Tests
+```bash
+python run_tests.py --all
+```
+
+### Test Coverage
+- ✅ Page loading and basic functionality
+- ✅ Cookie banner detection and dismissal
+- ✅ Element clickability (catches intercepted clicks)
+- ✅ Property link detection after navigation
+- ✅ Full scraping workflow validation
+
+**Note**: The `test_past_sales_link_clickability` test would have caught the original cookie banner issue by detecting the `ElementClickInterceptedException`.
+
 ## Error Handling
 
 The scraper includes comprehensive error handling for:
@@ -79,6 +106,7 @@ The scraper includes comprehensive error handling for:
 - Missing elements
 - Page load failures
 - Chrome driver issues
+- Cookie banner interference
 
 ## Notes
 
